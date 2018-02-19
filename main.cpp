@@ -1,4 +1,5 @@
 #include "mongoose.h"
+#include "base64.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -44,7 +45,6 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
     case MG_EV_WEBSOCKET_FRAME: {
       struct websocket_message *wm = (struct websocket_message *) ev_data;
       struct mg_str d = {(char *) wm->data, wm->size};
-      printf("Received\n");
 
         capture >> image;
 
@@ -53,7 +53,8 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
             throw std::exception();
         }
 
-	unsigned char* data = new unsigned char[image.rows * (image.cols * 3)];
+        size_t dataLen = image.rows * (image.cols * 3);
+	unsigned char* data = new unsigned char[dataLen];
         //printf("Rows: %i Cols: %i\n", (int)image.rows, (int)image.cols);
         size_t cu = 0;
 
@@ -61,9 +62,9 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
         {
           for(int x = 0; x < image.cols*3; x+=3)
           {
-            data[cu] = image.at<uchar>(y, x); cu++;
-            data[cu] = image.at<uchar>(y, x + 1); cu++;
             data[cu] = image.at<uchar>(y, x + 2); cu++;
+            data[cu] = image.at<uchar>(y, x + 1); cu++;
+            data[cu] = image.at<uchar>(y, x + 0); cu++;
           }
         }
 
@@ -78,9 +79,12 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 
         std::vector<unsigned char> dat;
         stbi_write_jpg_to_func(stbi_func, &dat, image.cols, image.rows, 3, data, 50);
-        delete[] data;
 
-        mg_send_websocket_frame(nc, WEBSOCKET_OP_BINARY, &dat[0], dat.size());
+	char* d2 = new char[dataLen];
+        Base64::Encode((char*)&dat[0], dat.size(), d2, dataLen);
+        mg_send_websocket_frame(nc, WEBSOCKET_OP_TEXT, d2, strlen(d2));
+        delete[] data;
+        delete[] d2;
       break;
     }
     case MG_EV_HTTP_REQUEST: {

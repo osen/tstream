@@ -5,7 +5,6 @@
 <script language="javascript" type="text/javascript" src="inkjet.min.js"></script>
 <script language="javascript" type="text/javascript">
 
-var currentImage;
 var ctx;
 var ws;
 
@@ -14,20 +13,12 @@ function on_recv()
   ws.send("idle");
 }
 
-function on_display(decoded)
+function on_display(img)
 {
-  var imageData = ctx.getImageData(0, 0, decoded.width, decoded.height);
-  var imageBytes = imageData.data;
-
-  for(var i = 0, j = 0, size = decoded.width * decoded.height * 4; i < size;)
+  if(img)
   {
-    imageBytes[i++] = decoded.data[j++];
-    imageBytes[i++] = decoded.data[j++];
-    imageBytes[i++] = decoded.data[j++];
-    imageBytes[i++] = decoded.data[j++];
+    ctx.drawImage(img, 0, 0);
   }
-
-  ctx.putImageData(imageData, 0, 0);
 }
 
 window.onload = function() {
@@ -42,7 +33,7 @@ window.onload = function() {
 
   //var decoder = new jpeg.lossless.Decoder();
   ws = new WebSocket('ws://' + location.host + '/ws');
-  ws.binaryType = 'arraybuffer';
+  //ws.binaryType = 'arraybuffer';
   //ws.binaryType = 'blob';
 
   if (!window.console) { window.console = { log: function() {} } };
@@ -57,31 +48,15 @@ window.onload = function() {
 
   ws.onmessage = function(ev)
   {
-/*
-    alert("Received: " + ev.data.byteLength);
-    var pixels = ev.data;
-    var buffer = new Uint8Array(ev.data);
-    //var output = decoder.decompress(buffer);
-    var output = decoder.decompress(ev.data);
-    alert("Output: " + output);
-*/
-    //var blob = new Blob([ev.data], {type: "image/jpeg"});
-    //var url = (URL || webkitURL).createObjectURL(ev.data, {oneTimeOnly: true});
+    var img = new Image();
 
-    inkjet.decode(ev.data, function(err, decoded)
+    img.onload = function()
     {
-      if(err)
-      {
-        alert(err.message);
-      }
-      else
-      {
-        //alert("Width: " + decoded.width + " Height: " + decoded.height);
-        on_display(decoded);
-        window.requestAnimationFrame(on_recv);
-      }
-    });
+      on_display(img);
+      on_recv();
+    };
 
+    img.src = 'data:image/jpeg;base64,' + ev.data;
   };
 
 };
