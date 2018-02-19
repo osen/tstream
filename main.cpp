@@ -77,7 +77,7 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 */
 
         std::vector<unsigned char> dat;
-        stbi_write_jpg_to_func(stbi_func, &dat, image.cols, image.rows, 3, data, 100);
+        stbi_write_jpg_to_func(stbi_func, &dat, image.cols, image.rows, 3, data, 50);
         delete[] data;
 
         mg_send_websocket_frame(nc, WEBSOCKET_OP_BINARY, &dat[0], dat.size());
