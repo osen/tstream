@@ -3,11 +3,16 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
 #include <exception>
 #include <vector>
 
 #include <stdio.h>
 
+cv::VideoCapture capture;
+cv::Mat image;
 struct mg_mgr mgr;
 struct mg_connection *nc;
 struct mg_serve_http_opts http_server_opts;
@@ -41,37 +46,41 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
       struct mg_str d = {(char *) wm->data, wm->size};
       printf("Received\n");
 
-      if(curr == 0)
-      {
-        mg_send_websocket_frame(nc, WEBSOCKET_OP_BINARY, image1, size1);
-        curr++;
-      }
-      else if(curr == 1)
-      {
-        mg_send_websocket_frame(nc, WEBSOCKET_OP_BINARY, image2, size2);
-        curr++;
-      }
-      else if(curr == 2)
-      {
-        mg_send_websocket_frame(nc, WEBSOCKET_OP_BINARY, image3, size3);
-        curr++;
-      }
-      else if(curr == 3)
-      {
+        capture >> image;
+
+        if(image.empty())
+        {
+            throw std::exception();
+        }
+
+	unsigned char* data = new unsigned char[image.rows * (image.cols * 3)];
+        //printf("Rows: %i Cols: %i\n", (int)image.rows, (int)image.cols);
+        size_t cu = 0;
+
+        for(int y = 0; y < image.rows; y++)
+        {
+          for(int x = 0; x < image.cols*3; x+=3)
+          {
+            data[cu] = image.at<uchar>(y, x); cu++;
+            data[cu] = image.at<uchar>(y, x + 1); cu++;
+            data[cu] = image.at<uchar>(y, x + 2); cu++;
+          }
+        }
+
+/*
         unsigned char data[] = {
           255, 0, 0,
           0, 255, 0,
           0, 0, 255,
           255, 255, 255
         };
+*/
 
         std::vector<unsigned char> dat;
-        stbi_write_jpg_to_func(stbi_func, &dat, 2, 2, 3, data, 50);
+        stbi_write_jpg_to_func(stbi_func, &dat, image.cols, image.rows, 3, data, 100);
+        delete[] data;
 
         mg_send_websocket_frame(nc, WEBSOCKET_OP_BINARY, &dat[0], dat.size());
-        curr = 0;
-      }
-
       break;
     }
     case MG_EV_HTTP_REQUEST: {
@@ -83,6 +92,15 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 
 int main()
 {
+  if(!capture.open(0))
+  {
+    printf("Failed to open camera\n");
+    return 1;
+  }
+
+  //capture.set(CV_CAP_PROP_FRAME_WIDTH, 512);
+  //capture.set(CV_CAP_PROP_FRAME_HEIGHT, 512);
+
   FILE* fp = fopen("sample.jpg", "rb");
   if(!fp) throw std::exception();
   fseek(fp, 0L, SEEK_END);
