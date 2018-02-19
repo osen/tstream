@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<head>
+  <title>TStream</title>
+
+<script language="javascript" type="text/javascript" src="lossless.js"></script>
+<script language="javascript" type="text/javascript">
+
+var currentImage;
+var ctx;
+var ws;
+
+function on_draw()
+{
+  ws.send("idle");
+
+  //ctx.clearRect(0, 0, 800, 600);
+
+  if(currentImage)
+  {
+    ctx.drawImage(currentImage, 0, 0);
+  }
+}
+
+window.onload = function() {
+
+  var canvas = document.createElement("canvas");
+  canvas.style.background = "gray";
+  canvas.width = 800;
+  canvas.height = 600;
+  document.body.appendChild(canvas);
+  ctx = canvas.getContext("2d");
+  var image = new Image();
+
+  //var decoder = new jpeg.lossless.Decoder();
+  ws = new WebSocket('ws://' + location.host + '/ws');
+  //ws.binaryType = 'arraybuffer';
+  ws.binaryType = 'blob';
+
+  if (!window.console) { window.console = { log: function() {} } };
+
+  ws.onopen = function(ev)
+  {
+    ws.send("idle");
+  };
+
+  ws.onerror = function(ev) { console.log(ev); };
+  ws.onclose = function(ev) { console.log(ev); };
+
+  ws.onmessage = function(ev)
+  {
+/*
+    alert("Received: " + ev.data.byteLength);
+    var pixels = ev.data;
+    var buffer = new Uint8Array(ev.data);
+    //var output = decoder.decompress(buffer);
+    var output = decoder.decompress(ev.data);
+    alert("Output: " + output);
+*/
+    //var blob = new Blob([ev.data], {type: "image/jpeg"});
+    var url = (URL || webkitURL).createObjectURL(ev.data, {oneTimeOnly: true});
+
+    //var image = new Image();
+    image.src = url;
+    image.onload = function()
+    {
+      currentImage = image;
+      //ctx.drawImage(currentImage,10,10);
+      //ws.send("idle");
+      //alert("Loaded");
+      //alert("Width: " + image.width);
+      //window.requestAnimationFrame(on_draw);
+    };
+
+    window.requestAnimationFrame(on_draw);
+    //ws.send("idle");
+  };
+
+};
+</script>
+</head>
+<body>
+</body>
+</html>
+
